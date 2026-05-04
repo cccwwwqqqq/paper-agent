@@ -1,0 +1,165 @@
+# Literature Agent Eval Report
+
+- Generated at: `{{ payload.generated_at }}`
+- Dataset: `{{ payload.dataset.path }}`
+- Cases: `{{ payload.dataset.case_count }}`
+- Baseline: `{{ payload.primary.baseline }}`
+
+## Dataset Summary
+
+### Suites
+{% for suite, count in payload.dataset.suite_counts.items() %}
+- `{{ suite }}`: {{ count }}
+{% endfor %}
+
+### Intents
+{% for intent, count in payload.dataset.intent_counts.items() %}
+- `{{ intent }}`: {{ count }}
+{% endfor %}
+
+### Workspaces
+{% for workspace, count in payload.dataset.workspace_counts.items() %}
+- `{{ workspace }}`: {{ count }}
+{% endfor %}
+
+## Gate Summary
+
+- Passed: `{{ payload.primary.gate.passed }}`
+
+| Gate | Actual | Threshold | Eligible | Status | Reason |
+|---|---:|---:|---:|---|---|
+{% for row in payload.primary.gate.rows %}
+| {{ row.label }} | {{ percentage(row.actual) }} | {{ percentage(row.threshold) }} | {{ row.passed_count }} / {{ row.eligible }} | {{ "PASS" if row.passed else "FAIL" }} | {{ row.reason or "" }} |
+{% endfor %}
+
+## Hard Metrics
+
+| Metric | Passed / Eligible | Rate |
+|---|---:|---:|
+{% for key, metric in payload.primary.metrics.hard_metrics.items() %}
+| {{ metric.label }} | {{ metric.passed }} / {{ metric.eligible }} | {{ percentage(metric.rate) }} |
+{% endfor %}
+
+Average latency: `{{ "%.2f"|format(payload.primary.metrics.average_latency_ms or 0) }} ms`
+
+## Soft Metrics
+
+| Metric | Passed / Eligible | Rate | Avg Score |
+|---|---:|---:|---:|
+{% for key, metric in payload.primary.metrics.soft_metrics.items() %}
+| {{ metric.label }} | {{ metric.passed }} / {{ metric.eligible }} | {{ percentage(metric.rate) }} | {{ "%.2f"|format(metric.average_score or 0) if metric.average_score is not none else "N/A" }} |
+{% endfor %}
+
+## Intent Breakdown
+
+| Intent | Passed / Eligible | Rate |
+|---|---:|---:|
+{% for intent, metric in payload.primary.metrics.per_intent.items() %}
+| `{{ intent }}` | {{ metric.passed }} / {{ metric.eligible }} | {{ percentage(metric.rate) }} |
+{% endfor %}
+
+## Failure Distribution
+
+{% if payload.primary.metrics.failure_distribution %}
+{% for failure, count in payload.primary.metrics.failure_distribution.items() %}
+- `{{ failure }}`: {{ count }}
+{% endfor %}
+{% else %}
+- No recorded failures.
+{% endif %}
+
+## Judge Calibration
+
+- Available: `{{ payload.primary.calibration.available }}`
+- Calibration passed: `{{ payload.primary.calibration.calibration_passed }}`
+{% if payload.primary.calibration.reason %}
+- Note: {{ payload.primary.calibration.reason }}
+{% endif %}
+
+{% if payload.primary.calibration.details %}
+{% for rubric, detail in payload.primary.calibration.details.items() %}
+### {{ rubric }}
+{% if detail.available %}
+- Good sample: score `{{ detail.good.score }}`, pass `{{ detail.good["pass"] }}`
+- Bad sample: score `{{ detail.bad.score }}`, pass `{{ detail.bad["pass"] }}`
+- Calibrated: `{{ detail.passed }}`
+{% else %}
+- Unavailable
+{% endif %}
+{% endfor %}
+{% endif %}
+
+## Success Examples
+
+{% if payload.primary.metrics.success_examples %}
+{% for case in payload.primary.metrics.success_examples %}
+### {{ case.case_id }}
+- Query: {{ case.query }}
+- Intent: `{{ case.predicted_intent }}`
+- Latency: `{{ case.latency_ms }} ms`
+- Answer excerpt: {{ case.final_answer_excerpt }}
+{% endfor %}
+{% else %}
+- No successful cases available.
+{% endif %}
+
+## Failure Examples
+
+{% if payload.primary.metrics.failure_examples %}
+{% for case in payload.primary.metrics.failure_examples %}
+### {{ case.case_id }}
+- Query: {{ case.query }}
+- Intent: expected `{{ case.expected_intent }}`, predicted `{{ case.predicted_intent }}`
+- Failure reason: `{{ case.failure_reason }}`
+- Answer excerpt: {{ case.final_answer_excerpt }}
+{% endfor %}
+{% else %}
+- No failed cases available.
+{% endif %}
+
+## Environment
+
+- LLM provider: `{{ payload.environment.llm_provider }}`
+- LLM model: `{{ payload.environment.llm_model }}`
+- Embedding provider: `{{ payload.environment.embedding_provider }}`
+- Embedding model: `{{ payload.environment.embedding_model }}`
+- Judge enabled: `{{ payload.environment.judge_enabled }}`
+{% if payload.environment.git_commit %}
+- Git commit: `{{ payload.environment.git_commit }}`
+{% endif %}
+
+## Rerank Backends
+
+{% if payload.environment.rerank_backend_counts %}
+{% for backend, count in payload.environment.rerank_backend_counts.items() %}
+- `{{ backend }}`: {{ count }}
+{% endfor %}
+{% else %}
+- No rerank backend data recorded.
+{% endif %}
+
+## Verification Status
+
+{% if payload.environment.verification_status_counts %}
+{% for status, count in payload.environment.verification_status_counts.items() %}
+- `{{ status }}`: {{ count }}
+{% endfor %}
+{% else %}
+- No verification status data recorded.
+{% endif %}
+
+{% if payload.ablation %}
+## Ablation Comparison
+
+- Primary baseline: `{{ payload.ablation_comparison.primary_baseline }}`
+- Secondary baseline: `{{ payload.ablation_comparison.secondary_baseline }}`
+
+| Metric | Primary | Secondary |
+|---|---:|---:|
+{% for row in payload.ablation_comparison.rows %}
+| {{ row.metric }} | {{ percentage(row.primary_rate) }} | {{ percentage(row.secondary_rate) }} |
+{% endfor %}
+
+- Primary avg latency: `{{ "%.2f"|format(payload.ablation_comparison.primary_avg_latency_ms or 0) }} ms`
+- Secondary avg latency: `{{ "%.2f"|format(payload.ablation_comparison.secondary_avg_latency_ms or 0) }} ms`
+{% endif %}
